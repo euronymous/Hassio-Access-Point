@@ -37,12 +37,18 @@ DENY_MAC_ADDRESSES=$(jq --raw-output '.deny_mac_addresses | join(" ")' $CONFIG_P
 DEBUG=$(jq --raw-output '.debug' $CONFIG_PATH)
 HOSTAPD_CONFIG_OVERRIDE=$(jq --raw-output '.hostapd_config_override | join(" ")' $CONFIG_PATH)
 CLIENT_INTERNET_ACCESS=$(jq --raw-output ".client_internet_access" $CONFIG_PATH)
+ROUTE_TO_INTERFACE=$(jq --raw-output ".route_to_interface" $CONFIG_PATH)
 CLIENT_DNS_OVERRIDE=$(jq --raw-output '.client_dns_override | join(" ")' $CONFIG_PATH)
 DNSMASQ_CONFIG_OVERRIDE=$(jq --raw-output '.dnsmasq_config_override | join(" ")' $CONFIG_PATH)
 
 # Set interface as wlan0 if not specified in config
 if [ ${#INTERFACE} -eq 0 ]; then
     INTERFACE="wlan0"
+fi
+
+# Set destination interface as eth0 if not specified in config
+if [ ${#ROUTE_TO_INTERFACE} -eq 0 ]; then
+    ROUTE_TO_INTERFACE="eth0"
 fi
 
 # Set debug as 0 if not specified in config
@@ -214,7 +220,7 @@ if [ $DHCP -eq 1 ]; then
     if [ $CLIENT_INTERNET_ACCESS -eq 1 ]; then
 
         ## Route traffic
-        iptables-nft -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+        iptables-nft -t nat -A POSTROUTING -o $ROUTE_TO_INTERFACE -j MASQUERADE
         iptables-nft -P FORWARD ACCEPT
         iptables-nft -F FORWARD
     fi
@@ -224,7 +230,7 @@ else
     ## No DHCP == No DNS. Must be set manually on client.
     ## Step 1: Routing
     if [ $CLIENT_INTERNET_ACCESS -eq 1 ]; then
-        iptables-nft -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+        iptables-nft -t nat -A POSTROUTING -o $ROUTE_TO_INTERFACE -j MASQUERADE
         iptables-nft -P FORWARD ACCEPT
         iptables-nft -F FORWARD
     fi
